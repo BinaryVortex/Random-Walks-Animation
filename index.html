@@ -1,0 +1,288 @@
+<html xmlns="http://www.w3.org/1999/xhtml"><head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+        <link rel="icon" href="favicon.ico"/>
+    
+    <title>Random Walk</title>
+    <style>
+    * { margin: 0; padding: 0;}
+    body {
+        font-family:Tahoma, Geneva, sans-serif;
+        overflow: hidden;	
+    }
+    #random {
+        display: block;
+        background: #000;
+    }
+    h1 table{
+        color:#FFF;
+        z-index:5;
+        position:fixed;
+        opacity:0.4;
+        width:100%;
+        text-align:center;
+        height:50px;
+    }
+    td {
+        width:50%;
+        height:100%;
+        font-size:40px;
+    }
+    #info{
+        width:460px;
+        height:100%;
+        background:#FFF;
+        position:fixed;
+        pointer-events:none;
+        opacity:.8;
+        left:50%;
+        margin-left:-250px;
+        padding:20px;
+        padding-top:50px;
+    }
+    #doc-head {
+        width:100%;
+        text-align:center;
+        font-weight:bold;
+    }
+    #doc {
+        font-size:14px;
+        text-align:justify;
+    }
+    </style>
+    
+    <body>
+    <div id="info">
+        <table>
+            <tr id="doc-head"><td>RANDOM WALKS</td></tr>
+            <tr><td id="doc">
+                <p>A random walk is a mathematical concept that 
+                describes the movement of random particles. It can
+                be used to model the path of a molecule in a liquid or
+                a gas, or natural things like the path of a dandelion 
+                seed as it flies away. A random walk works by taking
+                an initial step size and moving in a random direction.
+                From there it takes another step of the same size
+                in another completely random direction.</p>
+                <br/>
+                <p>One of the ways a random walk can be useful is
+                in determining the average distance a randomly moving
+                object can travel in a certain amount of steps. The
+                likelihood of it getting to the maximum distance is 
+                very small because every angle would have to happen 
+                to be the same.</p>
+                <br/>
+                <p>These are some basic control options:</p>
+                <p>Press [m] to open and close this menu.</p>
+                <p>Press [space] to play and pause the walk.</p>
+                <p>Press [enter] to restart the walk a random set of variables.</p>
+                <p>Press [shift] to restart the current walk.</p>
+                <br/>
+                <p>These are some variables you can play with:</p>
+                <p>Press [e] to toggle restarting at the edge.</p>
+                <p>Press [l] to cycle through the length.</p>
+                <p>Press [w] to cycle through the width.</p>
+                <p>Press [f] to toggle fading.</p>
+                <p>Press [b] to cycle through fade intensity.</p>
+                <p>Press [c] to cycle through color modes.</p>
+                <br/>
+                <p>Steps: <span id="number">0</span></p>
+            </td></tr>
+        </table>
+    </div>
+    <!--<h1><table><tr><td>STEPS:</td><td id="number">0</td></tr></table></h1>-->
+    <canvas id="random" width="1366" height="667"></canvas>
+    
+    <script>
+    window.onload = function(){
+        
+        playing = false;
+        menu = true;
+        document.addEventListener("keydown", function(e){
+            key = e.keyCode;
+            if(key==32){
+                if(!playing) play(); //space while paused
+                else pause(); //space while playing
+            }
+            else if(key==13){//return
+                restart();
+                randomVariables();
+            }
+            else if(key==77){
+                if(!menu){//M while down
+                    menu = true;
+                    document.getElementById("info").style.display = "inline";
+                }
+                else {//M while up 
+                    menu = false;
+                    document.getElementById("info").style.display = "none";
+                }
+            }
+            else if(key==16) restart(); //shift
+            else if(key==84){
+                //timestep
+            }
+            else if(key==69) forever = (!forever) ? true : false; //e
+            else if(key==76) len = (len<=3) ? 150 : len-3; //l
+            else if(key==87) wid = (wid<=3) ? 150 : wid-3; //w
+            else if(key==67) color = (color==0) ? 3 : color-1; //c
+            else if(key==70) cover = (!cover) ? true : false;
+            else if(key==66) background = (background>=.15) ? 0 : background + .01;
+            else return; //if it isn't a functional key leave the function without displaying
+        }, false);
+        
+        var canvas = document.getElementById("random");
+        var ctx = canvas.getContext("2d");
+        
+        var W = window.innerWidth, H = window.innerHeight;
+        canvas.width = W;
+        canvas.height = H;
+        
+        var cx = W/2;
+        var cy = H/2;
+        var x = 0;
+        var y = 0;
+        var i = 0;
+        var longest = (W>H) ? W : H;
+        
+        //Play Variables
+        var len	 = 10; //l - length
+        var wid = 10; //w - width
+        var timeOut = 10; //t - time to refresh
+        var background = 0.0; //b - fade intensity
+        var forever = true; //e - restart at edge
+        var cover = false; //f - fade true false
+        var color = 1; //c - color mode
+            //0 - random
+            //1 - radial rainbow
+            //2 - linear rainbow
+            //3 - white
+            //4 - something in the future
+        randomVariables();
+        
+        function rando(min,max){
+            return Math.floor(Math.random()*max)+min;	
+        }
+        
+        function randomVariables(vari,val){
+            len = rando(1,150);
+            wid = rando(1,100);
+            timeOut = rando(5,64);
+            background = Math.random()*.15;
+            color = rando(0,4);
+            forever = (rando(1,2)==1) ? true : false;
+            cover = (rando(1,2)==1) ? true : false;
+        }
+        
+        function distanceFromOrgin(x,y){
+            return Math.sqrt(Math.pow(x-(W/2),2)+Math.pow(y-(H/2),2));
+        }
+        
+        function rainbowColor(){
+            var ratio = distanceFromOrgin(cx,cy)/(longest/2);
+              var hue = Math.floor(360*ratio);
+            var sat = 100;
+              var lum = 50;
+            return "hsl(" + hue + "," + sat + "%," + lum + "%)";
+        }
+        
+        function linearColor(){
+            var hue = i;
+            var sat = 100;
+              var lum = 50;
+            
+            return "hsl(" + hue + "," + sat + "%," + lum + "%)";
+        }
+        
+        function randomColor() {
+            var rm = 255,
+                gm = 255,
+                bm = 255;
+            var r = Math.round(Math.random()*rm);
+            var g = Math.round(Math.random()*gm);
+            var b = Math.round(Math.random()*bm);
+            var a = (Math.random()*.5)+.5;
+            var rgba = "rgba("+r+", "+g+", "+b+", "+a+")";
+            return rgba;
+        }
+        
+        function randomAngle(){
+            return Math.floor(Math.random()*360)+1;
+        }
+        
+        function choosePoint(){
+            var bx = cx;
+            var by = cy;
+            var a = randomAngle();
+            while( (bx>W || bx<0 || by>H || by<0) && forever){
+                a = randomAngle();
+                bx = len*Math.cos(a) + cx;
+                by = len*Math.sin(a) + cy;
+            }
+            x = len*Math.cos(a);
+            y = len*Math.sin(a);
+            return false;
+        }
+        
+        
+        function drawLine(){
+            choosePoint();
+            ctx.beginPath();
+            ctx.moveTo(cx,cy);
+            ctx.lineTo(cx+x,cy+y);
+            ctx.lineWidth = wid;
+            
+            if(color==0)ctx.strokeStyle = randomColor()
+            else if(color==1)ctx.strokeStyle = rainbowColor();
+            else if(color==2)ctx.strokeStyle = linearColor();
+            else ctx.strokeStyle = "rgba(255,255,255,0.3)"
+            
+            ctx.stroke();
+            cx+=x;
+            cy+=y;
+            return false;
+        }
+        
+        function drawBackground(){
+            ctx.globalCompositeOperation = "source-over";
+            ctx.fillStyle = "rgba(0, 0, 0, " + background + ")";
+            ctx.fillRect(0, 0, W, H);
+            //ctx.globalCompositeOperation = "lighter";
+        }
+        
+        function walk(){
+            if((cx>W || cx<0 || cy>H || cy<0) && !forever){
+                drawBackground();
+                cx=W/2;
+                cy=H/2;
+                i = 0;
+            }
+            drawLine();
+            if(cover)drawBackground();
+            i++;
+            document.getElementById("number").innerHTML = i;		
+        }
+        
+        pause(); 
+        function play(){
+            document.getElementById("info").style.display = "none";
+            playing = true;
+            playID = setInterval(walk,timeOut);
+        }
+        function pause(){
+            playing = false;
+            clearInterval(playID);
+        }
+        function restart(){
+            btemp = background;
+            background = 1;
+            drawBackground();
+            cx = W/2;
+            cy = H/2;
+            i = 0;
+            background = btemp;
+        }
+    }
+    </script>
+    
+    </body></html>
